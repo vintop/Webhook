@@ -86,7 +86,25 @@ public class Integration extends ZABModel{
 	private String authenticationURL;
 
 	private String emailId;
+	private String workSpace;
+	public String getWorkSpace() {
+		return workSpace;
+	}
+
+	public void setWorkSpace(String workSpace) {
+		this.workSpace = workSpace;
+	}
+
+	private Long userId;
 	
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
 	private Integer customDimension;
 	
 	private String customTracker;
@@ -458,6 +476,34 @@ public class Integration extends ZABModel{
 				integration.setPrivacyURL((String)privacyURL);
 				integration.setAuthenticationURL((String)gtmURL);
 			}
+			
+			else if(integration_id != null && IntegrationConstants.Integ.INTERCOM.getIntegrationId().equals(integration_id)){
+				iconURL = ApplicationProperty.getString("com.abtest.intercom.iconurl");
+				termsURL = ApplicationProperty.getString("com.abtest.intercom.termsurl");
+				privacyURL = ApplicationProperty.getString("com.abtest.intercom.privacyurl");
+				String authUrl = ApplicationProperty.getString("com.abtest.intercom.authurl");
+				String clientid =ApplicationProperty.getString("com.abtest.intercom.clientid");
+				String portaldomain=ZABUtil.getPortaldomain();
+				String scheme = request.getScheme();
+				String serverName = request.getServerName() + ":" + request.getServerPort() + request.getContextPath();
+				if (request.getServerPort() == 443 || request.getServerPort() == 80) {
+					 serverName = request.getServerName() + request.getContextPath();
+				}
+				
+				String portalName = IAMUtil.getCurrentServiceOrg().getDomains().get(0).getDomain(); 
+			    String callbackURL =  scheme + "://" +serverName+"/pagesense/tpauthentication.jsp";
+				 authUrl = authUrl+"?client_id="+clientid+"&"+"state="+projectId+"-"+portaldomain+"-"+"intercom"; //No I18N
+				
+				Intercom intercom = Intercom.getIntercom(Long.parseLong(projectId));
+				if(intercom!=null) {					
+					integration.setUserId(intercom.getUserId());
+				}
+				integration.setIconURL((String)iconURL);
+				integration.setTermURL((String)termsURL);
+				integration.setPrivacyURL((String)privacyURL);
+				integration.setIsAuthenticated((intercom!=null  && intercom.getSuccess()));
+				integration.setAuthenticationURL((String)authUrl);
+			}
 		}catch(Exception ex){
 			LOGGER.log(Level.SEVERE, "Exception occured: ",ex);
 		}
@@ -539,6 +585,18 @@ public class Integration extends ZABModel{
 				integration.setEmailId(gtm.getEmailId());
 			}
 			integration.setIsAuthenticated((gtm!=null  && gtm.getSuccess()));
+			integration.setSuccess(Boolean.TRUE);
+		}
+		if( IntegrationConstants.Integ.INTERCOM.getIntegrationId().equals(integration_id))
+		{
+			String projectId = Project.getProjectId(project_linkname).toString();
+			Intercom intercom = Intercom.getIntercom(Long.parseLong(projectId));
+			if(intercom!=null) {					
+				integration.setUserId(intercom.getUserId());
+				integration.setEmailId(intercom.getEmailId());
+			 	integration.setWorkSpace(intercom.getWorkSpace());
+			}
+			integration.setIsAuthenticated((intercom!=null  && intercom.getSuccess()));
 			integration.setSuccess(Boolean.TRUE);
 		}
 		return integration;
@@ -684,6 +742,7 @@ public class Integration extends ZABModel{
 			if(!integrations.isEmpty() && integrations.get(0).getSuccess()) {				
 				ProjectTreeEventWrapper wrapper = new ProjectTreeEventWrapper();
 				wrapper.setModel(integrations.get(0));
+				wrapper.setModule(Module.PROJECT_INTEGRATION);
 				wrapper.setDbspace(ZABUtil.getCurrentUserDbSpace());
 				wrapper.setType(OperationType.CREATE);
 				ZABNotifier.notifyListeners(ProjectTreeEventConstants.EVENT_MODULE_NAME, wrapper);

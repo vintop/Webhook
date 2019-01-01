@@ -43,6 +43,7 @@ public class IntegrationResponse {
 			jsonObj.put(IntegrationConstants.IS_DIMENSION,ld.getIsDimension());
 			jsonObj.put(IntegrationConstants.IS_AUTHENTICATED,ld.getIsAuthenticated());
 			jsonObj.put(IntegrationConstants.EMAIL_ID,ld.getEmailId());
+			jsonObj.put(IntegrationConstants.WORKSPACE,ld.getWorkSpace());
 			jsonObj.put(IntegrationConstants.INTEGRATION_NAME, ld.getIntegrationName());
 			jsonObj.put(IntegrationConstants.INTEGRATION_DESCRIPTION, ld.getIntegrationDescription());
 			jsonObj.put(IntegrationConstants.ICON_URL, ld.getIconURL());

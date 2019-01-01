@@ -68,7 +68,7 @@ public class GoogleAdwordsAction implements ServletResponseAware, ServletRequest
 				if(mode != null && mode.equals("creategadwords")){
 					googleadwords.add(GoogleAdwords.createGoogleAdwords(hs));
 				}else{
-					googleadwords.addAll(GoogleAdwords.getGoogleAdwordsReport(hs,request,hs.get(IntegrationConstants.PROJECT_ID)));
+					googleadwords.addAll(GoogleAdwords.getGoogleAdwordsReport(hs,request));
 				}
 				
 				

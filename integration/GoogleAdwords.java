@@ -7,12 +7,11 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.net.UnknownHostException;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -30,8 +29,6 @@ import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.NestedQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.RangeQueryBuilder;
-import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -63,24 +60,21 @@ import com.zoho.abtest.AC_PORTAL;
 import com.zoho.abtest.EXPERIMENT;
 import com.zoho.abtest.FUNNEL_STEPS;
 import com.zoho.abtest.GOOGLE_ADWORDS_DETAILS;
-import com.zoho.abtest.PROJECT;
 import com.zoho.abtest.PROJECT_INTEGRATION;
-import com.zoho.abtest.adminconsole.AdminConsoleConstants;
+import com.zoho.abtest.audience.Audience;
 import com.zoho.abtest.audience.AudienceConstants;
 import com.zoho.abtest.common.ZABAction;
 import com.zoho.abtest.common.ZABConstants;
 import com.zoho.abtest.common.ZABModel;
-import com.zoho.abtest.dimension.Dimension;
 import com.zoho.abtest.dynamicconf.DynamicConfigurationConstants;
 import com.zoho.abtest.dynamicconf.DynamicConfigurationUtil;
 import com.zoho.abtest.elastic.ElasticSearchStatistics;
 import com.zoho.abtest.elastic.ElasticSearchUtil;
 import com.zoho.abtest.exception.ResourceNotFoundException;
 import com.zoho.abtest.exception.ZABException;
+import com.zoho.abtest.experiment.ABSplitAdwords;
 import com.zoho.abtest.experiment.Experiment;
-import com.zoho.abtest.experiment.ExperimentConstants;
 import com.zoho.abtest.experiment.ExperimentConstants.ExperimentStatus;
-import com.zoho.abtest.experiment.ExperimentConstants.ExperimentType;
 import com.zoho.abtest.forms.FormRawDataConstants;
 import com.zoho.abtest.forms.FormReportConstants;
 import com.zoho.abtest.funnel.FunnelAnalysis;
@@ -90,7 +84,6 @@ import com.zoho.abtest.goal.GoalConstants;
 import com.zoho.abtest.heatmaps.HeatmapConstants;
 import com.zoho.abtest.integration.IntegrationConstants.Integ;
 import com.zoho.abtest.project.Project;
-import com.zoho.abtest.project.ProjectConstants;
 import com.zoho.abtest.projectgoals.GoalAdwords;
 import com.zoho.abtest.report.ElasticSearchConstants;
 import com.zoho.abtest.report.ReportConstants;
@@ -121,7 +114,7 @@ public class GoogleAdwords extends ZABModel {
 	private Integer conversions;
 	private Double googleconversions;
 	private String currency;
-	private String ctr = "0";
+	private Double ctr;
 	private Double cpc;
 	private JSONArray jarray = new JSONArray();
 	
@@ -262,11 +255,11 @@ public class GoogleAdwords extends ZABModel {
 		this.googleconversions = googleconversions;
 	}
 	
-	public String getCTR() {
+	public Double getCTR() {
 		return ctr;
 	}
 	
-	public void setCTR(String ctr) {
+	public void setCTR(Double ctr) {
 		this.ctr = ctr;
 	}
 	
@@ -388,23 +381,34 @@ public class GoogleAdwords extends ZABModel {
 			adwordsInfoURL = GadgetsURL+"/api/google/v1/adwords/getcustomerinfo?ticket="+IAMUtil.getCurrentTicket()+"&zservice=ZohoPageSense&response_type=gadgets&mailId="+URLEncoder.encode(emailId,"UTF-8"); //No I18N
 			String responseJsonStr = ZABUtil.getResponseStrFromURL(adwordsInfoURL);
 			JSONObject responseJson = new JSONObject(responseJsonStr);
-			JSONObject clientObj = new JSONObject(responseJson.getString("response"));  
-			JSONObject clientResObj = new JSONObject(clientObj.getString("result"));
-			JSONArray jar1 = new JSONArray(clientResObj.getString("rows"));
-			for(int i=0; i<jar1.length(); i++){
-				GoogleAdwords ga1 = new GoogleAdwords();
-				JSONArray jobj = new JSONArray(jar1.get(i).toString());
-				clientId = Long.parseLong(jobj.getString(0));
-				customername = jobj.getString(1);
-				ismcc = Boolean.parseBoolean(jobj.getString(2));
-				ga1.setClientId(clientId);
-				ga1.setCustomerName(customername);
-				ga1.setIsMCC(ismcc);
-				ga1.setSuccess(Boolean.TRUE);
-				ga.add(ga1);
+			JSONObject clientObj = new JSONObject(responseJson.getString("response")); 
+			if(!clientObj.has("message")){
+				JSONObject clientResObj = new JSONObject(clientObj.getString("result"));
+				JSONArray jar1 = new JSONArray(clientResObj.getString("rows"));
+				for(int i=0; i<jar1.length(); i++){
+					GoogleAdwords ga1 = new GoogleAdwords();
+					JSONArray jobj = new JSONArray(jar1.get(i).toString());
+					clientId = Long.parseLong(jobj.getString(0));
+					customername = jobj.getString(1);
+					ismcc = Boolean.parseBoolean(jobj.getString(2));
+					ga1.setClientId(clientId);
+					ga1.setCustomerName(customername);
+					ga1.setIsMCC(ismcc);
+					ga1.setSuccess(Boolean.TRUE);
+					ga.add(ga1);
+				}
+			}else{
+				GoogleAdwords ga2 = new GoogleAdwords();
+				ga2.setSuccess(Boolean.FALSE);
+				ga2.setResponseString(IntegrationConstants.NO_ACCOUNTS);
+				ga.add(ga2);
 			}
+			
 
 		}catch(Exception ex){
+			GoogleAdwords ga3 = new GoogleAdwords();
+			ga3.setSuccess(Boolean.FALSE);
+			ga.add(ga3);
 			LOGGER.log(Level.SEVERE, ex.getMessage(),ex);
 		}
 		return ga;
@@ -425,6 +429,7 @@ public class GoogleAdwords extends ZABModel {
 			JSONObject clientObj = new JSONObject(responseJson.getString("response"));  
 			JSONObject clientResObj = new JSONObject(clientObj.getString("result"));
 			JSONArray jar1 = new JSONArray(clientResObj.getString("rows"));
+			LOGGER.info("!!!!!!!!!!! getAccountInfo clientobj length "+jar1.length());
 			for(int i=0; i<jar1.length(); i++){
 				GoogleAdwords ga1 = new GoogleAdwords();
 				JSONArray jobj = new JSONArray(jar1.get(i).toString());
@@ -439,7 +444,7 @@ public class GoogleAdwords extends ZABModel {
 			}
 
 		}catch(Exception ex){
-			LOGGER.log(Level.SEVERE, ex.getMessage(),ex);
+			LOGGER.log(Level.SEVERE, "!!!!!!!!!! getAccountInfo "+ex.getMessage(),ex);
 		}
 		return ga;
 	}
@@ -548,17 +553,42 @@ public class GoogleAdwords extends ZABModel {
 			
 			String GadgetsURL = ApplicationProperty.getString("com.abtest.gadwords.serverurl");
 			email_id = URLEncoder.encode(email_id,"UTF-8"); //No I18N
+			
+			long start_url = System.currentTimeMillis();
 			String adwordsReportURL = GadgetsURL+"/api/google/v1/adwords/downloadreport?zeroimpression=false&zservice=ZohoPageSense&type=clpr&response_type=gadgets&clientId="+client_id+"&mailId="+email_id+"&sdate="+start_date+"&edate="+start_date+"&fields="+URLEncoder.encode(fieldArray.toString(),"UTF-8"); //No I18N
 			String responseStr = ZABUtil.getResponseStrFromURL(adwordsReportURL,accessToken);
+			long end_url = System.currentTimeMillis();
+			NumberFormat formatter_url = new DecimalFormat("#0.00000");
+			LOGGER.info("!!!!!!!!!!! Google Adwords URL Time ProjectId = "+project_id+" ClientId = "+client_id+" DATE = "+ZABUtil.getCurrentDate()+"Execution time is " + formatter_url.format((end_url - start_url) / 1000d) + " seconds");
 			String report[] = responseStr.split("\n");
 			int strLen = report.length;
 			
 			String indexName = ElasticSearchUtil.getIndexByPortal(domainName);
 			String type = ElasticSearchConstants.ADWORDS_RAW_TYPE;
 			int count = 0;
+			
+			long start = System.currentTimeMillis();
+			ArrayList<JSONObject> jsonobjects = new ArrayList<JSONObject>();
 			for(int j=2;j<strLen;j++){
 				count++;
 				String row[] = report[j].split(",");
+				
+				if(row.length>3){
+					for(int n=0;n<row.length-2;n++){
+						if(n!=0){
+							row[0] = row[0]+row[n];
+						}
+						if(row.length-3 > n){
+							row[0] = row[0]+",";
+						}
+					}
+					for(int m=1;m<3;m++){
+						int k=m;
+						row[k]=row[k+=row.length-3];
+					}
+					
+				}
+				
 				JSONObject obj = new JSONObject();
 				obj.put("campaignname", row[0]);
 				obj.put("adgroupname", row[1]);
@@ -567,16 +597,20 @@ public class GoogleAdwords extends ZABModel {
 				obj.put("portal",domainName);
 				obj.put("zsoid", zsoid);
 				obj.put("time", ZABUtil.getCurrentTimeInMilliSeconds());
-				ElasticSearchUtil.createIndex(indexName, type,obj.toString());
+				jsonobjects.add(obj);
+				//ElasticSearchUtil.createIndex(indexName, type,obj.toString());
 			}
-			LOGGER.info("!!!!!!!!!!! addGClidJobWithDate END ProjectId = "+project_id+" ClientId = "+client_id+" DATE = "+ZABUtil.getCurrentDate()+" Count = "+count);
+			ElasticSearchUtil.bulkInsertDocuments(indexName, type, jsonobjects);
+			long end = System.currentTimeMillis();
+			NumberFormat formatter = new DecimalFormat("#0.00000");
+			LOGGER.info("!!!!!!!!!!! addGClidJobWithDate END ProjectId = "+project_id+" ClientId = "+client_id+" DATE = "+ZABUtil.getCurrentDate()+" Count = "+count+"Execution time is " + formatter.format((end - start) / 1000d) + " seconds");
 			
 		}catch(Exception ex){
-			LOGGER.log(Level.SEVERE, "!!!!!!!!!!!  addGClidJob Exception "+ex.getMessage(),ex);
+			LOGGER.log(Level.SEVERE, "!!!!!!!!!!!  addGClidJob Exception ProjectId = "+project_id+" ClientId = "+client_id+" "+ex.getMessage(),ex);
 		}
 	}
 	
-	public static ArrayList<GoogleAdwords> getGoogleAdwordsReport(HashMap<String, String> hs,HttpServletRequest request,String projectId)
+	public static ArrayList<GoogleAdwords> getGoogleAdwordsReport(HashMap<String, String> hs,HttpServletRequest request) throws JSONException
 	{
 		
 		HashMap<String, HashMap<String, String>> hm = new HashMap<String, HashMap<String, String>>();
@@ -591,8 +625,33 @@ public class GoogleAdwords extends ZABModel {
 		if(hostName != null && (hostName.contains("localzoho") || hostName.contains("zohocorpin"))){
 			url = "https://www.zoho.com/pagesense/"; //No I18N
 		}
+		String projectId = hs.get(IntegrationConstants.PROJECT_ID);
+		LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport "+projectId);
+		String variationId = hs.get(IntegrationConstants.VARIATION_ID);
 		HashMap<String,HashMap<String,JSONObject>> hashMap = new HashMap<String,HashMap<String,JSONObject>>();
-		hashMap = getGclidVisitConversion(hs,projectId);
+		hashMap = getGclidVisitConversion(hs);
+		
+		// MultiSegment have Current URL - Advance Segmentation
+		String current_url = null;
+		Integer operator = null;
+		String multiSegmentCriteria = hs.get(FunnelReportConstants.MULTISEGMENT_CRITERIA); 
+		if(multiSegmentCriteria != null){
+			JSONObject jb = new JSONObject(multiSegmentCriteria);
+			if(jb.has("conditions")){
+				JSONArray ja = new JSONArray(jb.getString("conditions"));
+				JSONObject jb1 = (JSONObject)ja.get(0);
+				JSONArray ja1 = new JSONArray(jb1.getString("conditions"));
+				JSONObject jb2 = (JSONObject)ja1.get(0);
+				String type = jb2.getString("type");
+				if(type!=null && type.equals("current_url")){
+					JSONArray values = new JSONArray(jb2.getString("values"));
+					current_url = values.get(0).toString();
+					operator = Integer.parseInt(jb2.getString("operator"));
+				}
+			}
+		}
+		
+		
 		//addGClidJob();
 		
 		ArrayList<GoogleAdwords> googleAdword = new ArrayList<GoogleAdwords>();
@@ -665,12 +724,28 @@ public class GoogleAdwords extends ZABModel {
 						adwordsReportURL = GadgetsURL+"/api/google/v1/adwords/downloadreport?zeroimpression=false&zservice=ZohoPageSense&type=adpr&response_type=gadgets&clientId="+clientId+"&mailId="+URLEncoder.encode(emailId.toString(),"UTF-8")+"&sdate="+start_date_adwords+"&edate="+end_date_adwords+"&fields="+URLEncoder.encode(fieldArray.toString(),"UTF-8"); //No I18N
 						String responseStr = ZABUtil.getResponseStrFromURL(adwordsReportURL,accessToken);
 						String report[] = responseStr.split("\n");
-						int strLen = report.length;
-				
+						int strLen = report.length;strLen--;
+						LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  adwordsReportURL count "+strLen);
 						for(int i=2;i<strLen;i++){
 							String row[] = report[i].split(",");
+							if(row.length>12){
+								for(int n=0;n<row.length-11;n++){
+									if(n!=0){
+										row[0] = row[0]+row[n];
+									}
+									if(row.length-12 > n){
+										row[0] = row[0]+",";
+									}
+								}
+								for(int m=1;m<12;m++){
+									int k=m;
+									row[k]=row[k+=row.length-12];
+								}
+								
+							}
 							if(i==2){
 								Currency = row[9];
+								Currency = getCurrencySymbol(Currency);
 							}
 							
 							url = URLDecoder.decode(url,"UTF-8"); //No I18N
@@ -683,8 +758,18 @@ public class GoogleAdwords extends ZABModel {
 								currentURL = currentURL2[0];
 							}
 							
-							Boolean urlMatch = Experiment.urlMatches(url, currentURL, matchTypeId);
+							Boolean urlMatch = false;
+							if(current_url!=null){
+								//URL taken from segmentation current URL
+								urlMatch = Audience.urlMatches(current_url, currentURL, operator);
+							}else{
+								//URL taken from Configuration
+								urlMatch = Experiment.urlMatches(url, currentURL, matchTypeId); 
+							}
 							
+							LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  url1 "+url+"currentURL "+currentURL+"matchTypeId "+matchTypeId+"urlMatch "+urlMatch);
+							LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  url2 "+url+"current_url "+current_url+"operator "+currentURL +"currentURL"+operator);
+
 							/*if(row[8] != null && row[8].contains(url)){ */
 							if(urlMatch){
 								
@@ -725,6 +810,7 @@ public class GoogleAdwords extends ZABModel {
 							    	hm.put(row[0], hm_construct);
 							    	
 							    }
+							    LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport hm size "+hm.size());
 							}
 						}
 					}
@@ -733,10 +819,26 @@ public class GoogleAdwords extends ZABModel {
 					adwordsReportURL = GadgetsURL+"/api/google/v1/adwords/downloadreport?zeroimpression=false&zservice=ZohoPageSense&type=adpr&response_type=gadgets&clientId="+clientId+"&mailId="+emailId+"&sdate="+start_date_adwords+"&edate="+end_date_adwords+"&fields="+URLEncoder.encode(fieldArray.toString(),"UTF-8"); //No I18N
 					String responseStr = ZABUtil.getResponseStrFromURL(adwordsReportURL,accessToken);
 					String report[] = responseStr.split("\n");
-					int strLen = report.length;
-			
+					int strLen = report.length;strLen--;
+					LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  adwordsReportURL count "+strLen);
+						
 					for(int i=2;i<strLen;i++){
 						String row[] = report[i].split(",");
+						if(row.length>12){
+							for(int n=0;n<row.length-11;n++){
+								if(n!=0){
+									row[0] = row[0]+row[n];
+								}
+								if(row.length-12 > n){
+									row[0] = row[0]+",";
+								}
+							}
+							for(int j=1;j<12;j++){
+								int k=j;
+								row[k]=row[k+=row.length-12];
+							}
+							
+						}
 						if(i==2){
 							Currency = row[9];
 							Currency = getCurrencySymbol(Currency);
@@ -754,9 +856,18 @@ public class GoogleAdwords extends ZABModel {
 							currentURL = "http://google.com"; //No I18N
 						}
 						
-						
-						Boolean urlMatch = Experiment.urlMatches(url, currentURL, matchTypeId);
-						
+						Boolean urlMatch = false;
+						if(current_url!=null){
+							//URL taken from segmentation current URL
+							urlMatch = Audience.urlMatches(current_url, currentURL, operator);
+						}else{
+							//URL taken from Configuration
+							urlMatch = Experiment.urlMatches(url, currentURL, matchTypeId); 
+						}
+
+						LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  url "+url+"currentURL "+currentURL+"matchTypeId "+matchTypeId+"urlMatch "+urlMatch);
+						LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport  url "+url+"current_url "+current_url+"operator "+currentURL +"currentURL"+operator);
+
 						/*if(row[8] != null && row[8].contains(url)){ */
 						if(urlMatch){
 							
@@ -797,10 +908,10 @@ public class GoogleAdwords extends ZABModel {
 						    	hm.put(row[0], hm_construct);
 						    	
 						    }
+						    LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport hm size "+hm.size());
 						}
 					}
 				}
-				
 				
 				for(Map.Entry<String, HashMap<String, String>> campaignEntry:hm.entrySet())
 				{
@@ -841,16 +952,11 @@ public class GoogleAdwords extends ZABModel {
 	        			}else{
 	        				json_adgroup.put(IntegrationConstants.COSTS, 0);
 	        			}
-	        			if(dataString[3] != null && !dataString[3].equals("0")){
-	        				json_adgroup.put(IntegrationConstants.CTR, String.format("%.2f",(Double.parseDouble(dataString[1])/Double.parseDouble(dataString[3]))*100));
-	        				campaign_ctr += ((Double.parseDouble(dataString[1])/Double.parseDouble(dataString[3]))*100);
-	        			}else{
-	        				json_adgroup.put(IntegrationConstants.CTR, 0);
-	        			}
 				        
 	        			json_adgroup.put(IntegrationConstants.CLICKS, 0);
 	        			json_adgroup.put(IntegrationConstants.CONVERSIONS, 0);
 	        			json_adgroup.put(IntegrationConstants.CPC, 0);
+	        			json_adgroup.put(IntegrationConstants.CTR, 0);
 				        if(hashMap.get(dataString[0]) != null ){				        	
 				        	hm_adg = hashMap.get(dataString[0]);
 			        		if(hm_adg.get(dataString[7]) != null){
@@ -860,6 +966,7 @@ public class GoogleAdwords extends ZABModel {
 			        			campaign_clicks += Integer.parseInt(json.getString("clicks"));
 //			        			campaign_googleclicks += Integer.parseInt(dataString[1]);
 			        			campaign_conversions += Integer.parseInt(json.getString("conversions"));
+
 //			        			campaign_googleconversions += Double.parseDouble(dataString[4]);
 //			        			campaign_impressions += Integer.parseInt(dataString[3]);
 			        			
@@ -876,25 +983,27 @@ public class GoogleAdwords extends ZABModel {
 //			        			}else{
 //			        				json_adgroup.put(IntegrationConstants.COSTS, "0");
 //			        			}
-//			        			if(dataString[3] != null && !dataString[3].equals("0")){
-//			        				json_adgroup.put(IntegrationConstants.CTR, String.format("%.2f",(Double.parseDouble(dataString[1])/Double.parseDouble(dataString[3]))*100));
-//			        				campaign_ctr += ((Double.parseDouble(dataString[1])/Double.parseDouble(dataString[3]))*100);
-//			        			}else{
-//			        				json_adgroup.put(IntegrationConstants.CTR, "0");
-//			        			}
+			        			if(dataString[3] != null && !dataString[3].equals("0") && !json.getString("clicks").equals("0") ){
+			        				json_adgroup.put(IntegrationConstants.CTR, Double.parseDouble(String.format("%.2f",(Integer.parseInt(json.getString("clicks"))/Double.parseDouble(dataString[3]))*100)));
+			        				campaign_ctr += ((Integer.parseInt(json.getString("clicks"))/Integer.parseInt(dataString[3]))*100);
+			        			}else{
+			        				json_adgroup.put(IntegrationConstants.CTR, 0);
+			        			}
+			        			
 			        			if(!dataString[1].equals("0") && !json.getString("conversions").equals("0")){
-			        				json_adgroup.put(IntegrationConstants.CPC, String.format("%.2f",(Double.parseDouble(dataString[2])/Double.parseDouble(json.getString("conversions")))/1000000));
+			        				json_adgroup.put(IntegrationConstants.CPC, Double.parseDouble(String.format("%.2f",(Double.parseDouble(dataString[2])/Double.parseDouble(json.getString("conversions")))/1000000)));
 			        				campaign_cpc += ((Double.parseDouble(dataString[2])/Double.parseDouble(json.getString("conversions")))/1000000);
 			        			}else{
 			        				json_adgroup.put(IntegrationConstants.CPC, 0);
 			        			}
 				        	}
+			        		if(json_adgroup.length() > 0){
+					        	jarray.put(json_adgroup);
+					        }
 				        }
-				        if(json_adgroup.length() > 0){
-				        	jarray.put(json_adgroup);
-				        }
+				       
 					}
-					
+					LOGGER.info("!!!!!!!!!!! getGoogleAdwordsReport jarray length "+jarray.length());
 					if(jarray.length() > 0){
 						google.setCampaignName(campaignName);
 						google.setClicks(campaign_clicks);
@@ -903,7 +1012,15 @@ public class GoogleAdwords extends ZABModel {
 						google.setGoogleConversions(campaign_googleconversions);
 						//google.setCosts(String.format("%.2f",(campaign_costs))); //No I18N
 						google.setCosts(campaign_costs);
-						google.setCTR(String.format("%.2f",(campaign_ctr))); //No I18N
+						if(campaign_clicks != 0 && campaign_impressions !=0){
+							
+//							DecimalFormat df2 = new DecimalFormat(".##");
+//					        String numberAsString = df2.format((Double.parseDouble(campaign_clicks.toString())/(Double.parseDouble(campaign_impressions.toString())))/100);
+							Double clickperimp = Double.parseDouble(String.format("%.2f",(Double.parseDouble(campaign_clicks.toString())/Double.parseDouble(campaign_impressions.toString()))*100)); //No I18N
+							google.setCTR(clickperimp);
+						}else{
+							google.setCTR(0.00);
+						}
 						if(campaign_conversions != 0 && campaign_costs != 0){
 							DecimalFormat df2 = new DecimalFormat(".##");
 					        String numberAsString = df2.format(Double.parseDouble(campaign_costs.toString())/(Double.parseDouble(campaign_conversions.toString())));
@@ -1074,7 +1191,7 @@ public class GoogleAdwords extends ZABModel {
 		return hashMap;
 	}
 	
-	public static HashMap<String,HashMap<String,JSONObject>> getGclidVisitConversion(HashMap<String,String> hs,String projectId) {
+	public static HashMap<String,HashMap<String,JSONObject>> getGclidVisitConversion(HashMap<String,String> hs) {
 		
 		HashMap<String,HashMap<String,JSONObject>> hashMap = new HashMap<String,HashMap<String,JSONObject>>();
 		try{
@@ -1097,6 +1214,8 @@ public class GoogleAdwords extends ZABModel {
 			
 			String moduleType = hs.get(IntegrationConstants.MODULE_TYPE);
 			String reportType = hs.get(IntegrationConstants.REPORT_TYPE);
+			String projectId = hs.get(IntegrationConstants.PROJECT_ID);
+			String variationId = hs.get(IntegrationConstants.VARIATION_ID);
 			Long startTimeInMillis = null;
 			if(startTime!=null&&!startTime.isEmpty()){
 				 startTimeInMillis = ZABUtil.getTimeInLongFromDateFormStr(startTime, "yyyy-MM-dd");		// NO I18N
@@ -1115,7 +1234,8 @@ public class GoogleAdwords extends ZABModel {
 			
 			String queryParamKey = ElasticSearchConstants.GCLID;
 			String multiSegmentCriteria = hs.get(FunnelReportConstants.MULTISEGMENT_CRITERIA); 
-			if(moduleType != null && (moduleType.equals("6") || (moduleType.equals("7")))){
+
+			if(hs.containsKey(IntegrationConstants.EXPERIMENT_ID)){
 				experimentId=Long.parseLong(hs.get(IntegrationConstants.EXPERIMENT_ID));
 				experimentLinkName = Experiment.getExperimentLinkname(experimentId);
 			}
@@ -1142,7 +1262,15 @@ public class GoogleAdwords extends ZABModel {
 				all_gclids = GoalAdwords.getAllGoalVisitors(multiSegmentCriteria, startTime, endTime, goalLinkName, indexName, portalName, projectId);
 				converted_gclids = GoalAdwords.getAllGoalConversions(multiSegmentCriteria, startTime, endTime, goalLinkName, indexName, portalName, projectId);
 			
+			}else if(moduleType != null && (moduleType.equals("1") || moduleType.equals("2"))){  // ABTest and SPlit
+				
+				all_gclids = ABSplitAdwords.getAllABSplitVisitors(multiSegmentCriteria, startTime, endTime, null, indexName, portalName, experimentId.toString(),variationId);
+				converted_gclids = ABSplitAdwords.getAllABSplitConversions(multiSegmentCriteria, startTime, endTime, goalLinkName, indexName, portalName, experimentId.toString(),variationId);
+			
 			}
+			
+			LOGGER.info("!!!!!!!!!!! getGclidVisitConversion all_gclids length "+all_gclids.size());
+			LOGGER.info("!!!!!!!!!!! getGclidVisitConversion converted_gclids length "+converted_gclids.size());
 			
 			if(all_gclids!=null){
 				int all_gclids_count = all_gclids.size();
@@ -1157,17 +1285,21 @@ public class GoogleAdwords extends ZABModel {
 				LOGGER.info("!!!!!!!! ALL GCLID Count ZERO");
 			}
 			
-			LOGGER.info("!!!!!!!! DOMAINNAME "+domainName);
 			
 			if(all_gclids!=null){
 				HashMap<String,HashMap<String,JSONObject>> hashMap_allgclids = populateGCLIDValues(all_gclids, domainName);
 				HashMap<String,HashMap<String,JSONObject>> hashMap_convertedgclids = populateGCLIDValues(converted_gclids, domainName);
 				
+				LOGGER.info("!!!!!!!!!!! getGclidVisitConversion hashMap_allgclids length "+hashMap_allgclids.size());
+				LOGGER.info("!!!!!!!!!!! getGclidVisitConversion hashMap_convertedgclids "+hashMap_convertedgclids.size());
+				
 				hashMap = mergeClickConversionHashMap(hashMap_allgclids,hashMap_convertedgclids);
 				
-				LOGGER.info("!!!!!!!! populateGCLIDValues_hashMap_allgclids "+hashMap_allgclids);
-				LOGGER.info("!!!!!!!! populateGCLIDValues_hashMap_convertedgclids "+hashMap_convertedgclids);
-				LOGGER.info("!!!!!!!! mergeClickConversionHashMap "+hashMap);
+				LOGGER.info("!!!!!!!!!!! getGclidVisitConversion mergeClickConversionHashMap "+hashMap.size());
+				
+//				LOGGER.info("!!!!!!!! populateGCLIDValues_hashMap_allgclids "+hashMap_allgclids);
+//				LOGGER.info("!!!!!!!! populateGCLIDValues_hashMap_convertedgclids "+hashMap_convertedgclids);
+//				LOGGER.info("!!!!!!!! mergeClickConversionHashMap "+hashMap);
 			}
 			
 			
@@ -1872,7 +2004,6 @@ public class GoogleAdwords extends ZABModel {
 				case "ZAR":
 					currency = IntegrationConstants.SOUTHAFRICAN_RAND;
 					break;
-			
 			}
 			
 			return currency;

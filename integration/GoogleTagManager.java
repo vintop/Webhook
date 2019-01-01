@@ -218,18 +218,25 @@ public class GoogleTagManager extends ZABModel {
 			String responseJsonStr = ZABUtil.getResponseStrFromURL(GTMAccountsURL);
 			JSONObject responseJson = new JSONObject(responseJsonStr);
 			JSONObject respObj = new JSONObject(responseJson.getString("response"));  
-			JSONArray acc = new JSONArray(respObj.getString("account")); 
-
-			for(int i=0;i<acc.length();i++){
-				
+			if(respObj.length() != 0){
+				JSONArray acc = new JSONArray(respObj.getString("account")); 
+	
+				for(int i=0;i<acc.length();i++){
+					
+					GoogleTagManager gtm = new GoogleTagManager();
+					JSONObject account = new JSONObject(acc.getString(i));
+					Long accountId = Long.parseLong(account.getString("accountId"));
+					String name = account.getString("name");
+					
+					gtm.setAccountId(accountId);
+					gtm.setAccountName(name);
+					gtm.setSuccess(Boolean.TRUE);
+					gtms.add(gtm);
+				}
+			}else{
 				GoogleTagManager gtm = new GoogleTagManager();
-				JSONObject account = new JSONObject(acc.getString(i));
-				Long accountId = Long.parseLong(account.getString("accountId"));
-				String name = account.getString("name");
-				
-				gtm.setAccountId(accountId);
-				gtm.setAccountName(name);
-				
+				gtm.setSuccess(Boolean.FALSE);
+				gtm.setResponseString(IntegrationConstants.NO_ACCOUNTS); 
 				gtms.add(gtm);
 			}
 			
@@ -314,7 +321,7 @@ public class GoogleTagManager extends ZABModel {
 				
 				gtm.setWorkSpaceId(workspaceId);
 				gtm.setWorkSpaceName(name);
-				
+				gtm.setSuccess(Boolean.TRUE);
 				gtms.add(gtm);
 			}
 			
@@ -343,6 +350,7 @@ public class GoogleTagManager extends ZABModel {
 			if(googleTagManagerRes!=null) {
 				if(!googleTagManagerRes.isEmpty()) {
 					gtm=googleTagManagerRes.get(0);
+					gtm.setSuccess(Boolean.TRUE);
 				}else {
 					gtm=new GoogleTagManager();
 					gtm.setSuccess(Boolean.FALSE);

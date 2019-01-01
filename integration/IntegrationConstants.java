@@ -4,7 +4,6 @@ package com.zoho.abtest.integration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import com.zoho.abtest.GOOGLE_ANALYTICS_DETAILS;
 import com.zoho.abtest.GOOGLE_ADWORDS_DETAILS;
 import com.zoho.abtest.GOOGLE_TAG_MANAGER_DETAILS;
@@ -21,6 +20,10 @@ public class IntegrationConstants {
 	public static final String API_MODULE_GOOGLEANALYTICS = "googleanalytics"; //No I18N
 
 	public static final String API_MODULE_GOOGLEADWORDS = "googleadwords"; //No I18N
+	
+	public static final String API_MODULE_INTERCOM = "intercom"; //No I18N
+	
+	public static final String API_MODULE_INTERCOM_WEBHOOK = "data"; //No I18N
 	
 	public static final String API_MODULE_GOOGLETAGMANAGER = "googletagmanager"; //No I18N
 	
@@ -44,6 +47,12 @@ public class IntegrationConstants {
 	
 	public static final String PROJECT_ID = "project_id"; //No I18N
 	
+	public static final String USER_ID = "user_id"; //No I18N
+	
+	public static final String ACCESS_TOKEN = "access_token"; //No I18N
+
+	public static final String VARIATION_ID = "variation_id"; //No I18N
+	
 	public static final String PROJECT_LINK_NAME = "project_link_name"; //No I18N
 		
 	public static final String EXPERIMENT_ID = "experiment_id"; //No I18N
@@ -63,6 +72,8 @@ public class IntegrationConstants {
 	public static final String IS_AUTHENTICATED="is_authenticated"; //No I18N
 
 	public static final String EMAIL_ID = "email_id"; //No I18N
+	
+	public static final String WORKSPACE = "workspace"; //No I18N
 	
 	public static final String MODE = "mode"; //No I18N
 	
@@ -110,6 +121,10 @@ public class IntegrationConstants {
 
 	public static final String CLICKY = "Clicky"; //No I18N
 	
+	public static final String INTERCOM = "Intercom"; //No I18N
+	
+	public static final String INTERCOM_ID = "id"; //No I18N
+	
 	public static final String ADWORDS_URL = "url"; //No I18N
 	
 	public static final String CAMPAIGN_NAME = "campaign_name"; //No I18N
@@ -149,6 +164,8 @@ public class IntegrationConstants {
 	public static final String MULTIPLE_SEGMENT = "multisegment_criteria"; //No I18N
 	
 	public static final String URL = "url"; //No I18N
+	
+	public static final String NO_ACCOUNTS = "no accounts"; //No I18N
 	
 	public static final String MATCH_TYPE_ID = "match_type_id"; //No I18N
 	
@@ -213,8 +230,9 @@ public class IntegrationConstants {
 		KISSMETRICS(2, IntegrationConstants.KISSMETRICS,""), //NO I18N
 		MIXPANEL(3, IntegrationConstants.MIXPANEL,""), //NO I18N
 		GOOGLEADWORDS(4, IntegrationConstants.GOOGLEADWORDS,""), //NO I18N
-		CLICKY(5, IntegrationConstants.CLICKY,""); //NO I18N
-		
+		CLICKY(5, IntegrationConstants.CLICKY,""), //NO I18N
+        INTERCOM(7, IntegrationConstants.INTERCOM,""); //NO I18N
+
 		private Integer integrationId;
 		
 		private String displayName;
@@ -240,7 +258,7 @@ public class IntegrationConstants {
 		}
 		
 		public static Integ getIntegrationById(Integer integId) {
-			for(Integ integObj: Integ.values()) {
+			for(Integ integObj: Integ.values()) { 
 				if(integId!=null && integObj.getIntegrationId().equals(integId)) {
 					return integObj;
 				}
@@ -311,5 +329,15 @@ public class IntegrationConstants {
 		list.add(new Constants(CONTAINER_ID,GOOGLE_TAG_MANAGER_DETAILS.CONTAINER_ID,ZABConstants.LONG,Boolean.TRUE));
 		list.add(new Constants(WORKSPACE_ID,GOOGLE_TAG_MANAGER_DETAILS.WORKSPACE_ID,ZABConstants.LONG,Boolean.TRUE));
 		GOOGLE_TAG_MANAGER_TABLE = (List<Constants>) Collections.unmodifiableList(list);
+	}
+	public final static List<Constants> INTERCOM_TABLE;
+	static{
+		ArrayList<Constants> list = new ArrayList<Constants>();
+		list.add(new Constants(PROJECT_ID,com.zoho.abtest.INTERCOM.PROJECT_ID,ZABConstants.LONG,Boolean.FALSE));
+		list.add(new Constants(USER_ID,com.zoho.abtest.INTERCOM.USER_ID,ZABConstants.LONG,Boolean.TRUE));
+		list.add(new Constants(ACCESS_TOKEN,com.zoho.abtest.INTERCOM.ACCESS_TOKEN,ZABConstants.STRING,Boolean.TRUE));
+		list.add(new Constants(EMAIL_ID,com.zoho.abtest.INTERCOM.EMAIL_ID,ZABConstants.STRING,Boolean.TRUE));
+
+		INTERCOM_TABLE = (List<Constants>) Collections.unmodifiableList(list);
 	}
 }
