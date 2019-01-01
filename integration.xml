@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE integration SYSTEM "integration.dtd">
+
+<webhooks>
+       <webhook>
+       <webhook_config name="zohocrm">
+             <url>https://www.zohoapis.com/crm/v2/leads</url>
+            <body>{
+	"data":[
+		{
+			"Last_Name": "kumar",
+			"First_Name": "Vinay", "Email": "vinaykumar.s@zohocorp.com"
+		}
+		],    "trigger":["approval"]
+}</body>
+            <auth_type>2</auth_type>
+            <method>post</method>
+          
+      </webhook_config>
+      
+      <trigger_config type="1"/>
+      
+      
+     <headers>
+     
+         <header key="scope" value="ZohoCRM.modules.all"/>
+           <header key="Authorization" value="Zoho-oauthtoken {{access_token}}"/>
+      </headers>
+       
+        <oauth>
+            <callback_url>http://vinay-6985.csez.zohocorpin.com:8080/pagesense/api/v1/portal/vinay/TestAction/zohocrm</callback_url> 
+             <access_token_url>https://accounts.zoho.com/oauth/v2/token?client_id=1000.BZ6FAA3ZNM9778147DABD6BDFS3AOF&amp;client_secret=4b9753575b1f63b4acaf04dd2c2b432fc1c077d0b4&amp;access_type=offline&amp;grant_type=refresh_token&amp;scope=ZOHOCRM.modules.all&amp;refresh_token={{refresh_token}}</access_token_url> 
+     
+             <authorization_url>https://accounts.zoho.com/oauth/v2/token?client_id=1000.BZ6FAA3ZNM9778147DABD6BDFS3AOF&amp;client_secret=4b9753575b1f63b4acaf04dd2c2b432fc1c077d0b4&amp;grant_type=authorization_code&amp;access_type=offline&amp;prompt=consent</authorization_url> 
+       </oauth>    
+        </webhook>
+</webhooks>

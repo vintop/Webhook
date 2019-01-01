@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<trigger_mapping>
+<mapping class="com.zoho.abtest.report.GoalTrigger" trigger_type="1">
+</mapping>
+<mapping class="com.zoho.abtest.report.LeadTrigger" trigger_type="3">
+</mapping>
+</trigger_mapping>
+       

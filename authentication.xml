@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<auth_mapping>
+<mapping class="com.zoho.abtest.report.Oauth" auth_type="2">
+</mapping>
+<mapping class="com.zoho.abtest.report.NoAuth" auth_type="1">
+</mapping>
+</auth_mapping>
+       
